@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!--
+
+-->
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>CESNET</title>
+        <meta name="description" content="File upload">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <!-- jQuery UI styles -->
+        <link rel="stylesheet" href="../jquery-ui/jquery-ui.css" id="theme">
+        <!-- Demo styles -->
+        <link rel="stylesheet" href="css/demo.css">
+        <!-- CSS to style the file input field as button and adjust the Bootstrap progress bars -->
+        <link rel="stylesheet" href="css/jquery.fileupload.css">
+        <link rel="stylesheet" href="css/jquery.fileupload-ui.css">
+        
+        <!-- CSS adjustments for browsers with JavaScript disabled -->
+        <noscript><link rel="stylesheet" href="css/jquery.fileupload-noscript.css"></noscript>
+        <noscript><link rel="stylesheet" href="css/jquery.fileupload-ui-noscript.css"></noscript>
+    </head>
+    
+    <body>
+        <h1>CESNET TSA JSP Service</h1>
+        <h2>jQuery UI version</h2>
+        <form>
+            <label for="theme-switcher">Theme:</label>
+            <select id="theme-switcher" class="pull-right">
+                <option value="black-tie">Black Tie</option>
+                <option value="blitzer">Blitzer</option>
+                <option value="cupertino">Cupertino</option>
+                <option value="dark-hive" selected>Dark Hive</option>
+                <option value="dot-luv">Dot Luv</option>
+                <option value="eggplant">Eggplant</option>
+                <option value="excite-bike">Excite Bike</option>
+                <option value="flick">Flick</option>
+                <option value="hot-sneaks">Hot sneaks</option>
+                <option value="humanity">Humanity</option>
+                <option value="le-frog">Le Frog</option>
+                <option value="mint-choc">Mint Choc</option>
+                <option value="overcast">Overcast</option>
+                <option value="pepper-grinder">Pepper Grinder</option>
+                <option value="redmond">Redmond</option>
+                <option value="smoothness">Smoothness</option>
+                <option value="south-street">South Street</option>
+                <option value="start">Start</option>
+                <option value="sunny">Sunny</option>
+                <option value="swanky-purse">Swanky Purse</option>
+                <option value="trontastic">Trontastic</option>
+                <option value="ui-darkness">UI Darkness</option>
+                <option value="ui-lightness">UI Lightness</option>
+                <option value="vader">Vader</option>
+            </select>
+        </form>
+        
+        <hr>
+        
+        <h3>Vyberte soubor k orazítkování</h3>
+        <form id="fileupload" action="stamping.jsp" method="POST" enctype="multipart/form-data">
+            <!-- Redirect browsers with JavaScript disabled to the origin page -->
+            <noscript><input type="hidden" name="redirect" value="https://blueimp.github.io/jQuery-File-Upload/"></noscript>
+            <input type="file" name="filename" />
+            <input type="submit" />
+        </form>
+        
+        
+        <script src="../jquery-ui/external/jquery/jquery.min.js"></script>
+        <script src="js/jquery-ui.min.js"></script>
+        
+        <!-- The Iframe Transport is required for browsers without support for XHR file uploads -->
+        <script src="js/jquery.iframe-transport.js"></script>
+        <!-- The basic File Upload plugin -->
+        <script src="js/jquery.fileupload.js"></script>
+        <!-- The File Upload processing plugin -->
+        <script src="js/jquery.fileupload-process.js"></script>
+        <!-- The File Upload image preview & resize plugin -->
+        <script src="js/jquery.fileupload-image.js"></script>
+        <!-- The File Upload audio preview plugin -->
+        <script src="js/jquery.fileupload-audio.js"></script>
+        <!-- The File Upload video preview plugin -->
+        <script src="js/jquery.fileupload-video.js"></script>
+        <!-- The File Upload validation plugin -->
+        <script src="js/jquery.fileupload-validate.js"></script>
+        <!-- The File Upload user interface plugin -->
+        <script src="js/jquery.fileupload-ui.js"></script>
+        <!-- The File Upload jQuery UI plugin -->
+        <script src="js/jquery.fileupload-jquery-ui.js"></script>
+        <!-- The main application script -->
+        <script src="js/main.js"></script>
+        <script>
+        // Initialize the jQuery UI theme switcher:
+        $('#theme-switcher').change(function () {
+            var theme = $('#theme');
+            theme.prop(
+                'href',
+                theme.prop('href').replace(
+                    /[\w\-]+\/jquery-ui.css/,
+                    $(this).val() + '/jquery-ui.css'
+                )
+            );
+        });
+        </script>
+    </body>
+</html>

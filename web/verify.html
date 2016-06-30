@@ -20,18 +20,31 @@
         <form id="verification" action="verification.jsp" method="POST" enctype="multipart/form-data">
             <table>
                 <tr>
+                    <td></td>
                     <td>Orazítkovaný soubor:</td>
                     <td><input type="file" name="originalFile" /></td>
                 </tr>
                 <tr>
+                    <td></td>
                     <td>Razítko (.tsr):</td>
                     <td><input type="file" name="timestamp" /></td>
                 </tr>
                 <tr>
-                    <td></td><td align="right"><input type="submit" /></td>
+                    <td><i>(volitelně) </i></td>
+                    <td>Certifikát (.pem):</td>
+                    <td><input type="file" name="cert" /></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td align="right"><input type="submit" /></td>
                 </tr>
             </table>
         </form>
         
+        <br>
+        <br>
+        <hr>
+        <i><a href="index.html">Návrat na hlavní stránku</a></i>
     </body>
 </html>
