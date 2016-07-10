@@ -28,10 +28,11 @@
         <%
             boolean success = false;
             File file = null;
+            String stampName = filename.replace(".", "_").concat("-stamp.tsr");
             try {
                 byte[] timeStampResponse = con.stamp(filename, fileContent);
 
-                file = File.createTempFile(filename.concat("-stamp"), ".tsr", new File(System.getProperty("java.io.tmpdir")));
+                file = File.createTempFile("stamp", ".tsr", new File(System.getProperty("java.io.tmpdir")));
                 file.deleteOnExit();
                 FileOutputStream fos = new FileOutputStream(file);
                 fos.write(timeStampResponse);
@@ -54,10 +55,10 @@
             if (success) {
         %>
             <p>
-                Hotovo, stáhněte si razítko <a download="stamp.tsr" href="file:///<%=file%>" target="_blank">zde</a>.
+                Hotovo, stáhněte si razítko <a href="DownloadServ?id=<%=file%>&filename=<%=stampName%>">zde</a>.
             </p>
             <p>
-                <i>(klikněte na odkaz pravým tlačítkem a zvolte </i>"Uložit soubor jako.."<i>)</i>
+                <i>(už by mělo fungovat :) )</i>
             </p>
         <%
             } else {
