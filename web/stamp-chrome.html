@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!--
+
+-->
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>CESNET</title>
+<!--        
+        <meta name="description" content="File upload">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        -->
+        
+    </head>
+    <body>
+        <script src="js/jquery-3.0.0.min.js"></script>
+        <script>
+            
+            $(document).on("dragover drop", function(e) {
+                e.preventDefault();  // allow dropping and don't navigate to file on drop
+            }).on("drop", function(e) {
+                $("input[type='file']")
+                    .prop("files", e.originalEvent.dataTransfer.files)  // put files into element
+                    .closest("form");
+//                      .submit();  // autosubmit as well
+            });
+
+        </script>
+        
+        <h1>CESNET TSA JSP Service</h1>
+        <h2>HTML version with simple jQuery script</h2>
+        
+        <hr>
+        
+        <h3>Vyberte soubor k orazítkování</h3>
+        <form action="stamping.jsp" method="POST" enctype="multipart/form-data"> 
+                <input type="file" name="filename" />
+                <input type="submit" />
+        </form>
+        <br>
+        <br>
+        <br>
+        <br>
+        <hr>
+        <i><a href="index.html">Návrat na hlavní stránku</a></i>
+    </body>
+</html>

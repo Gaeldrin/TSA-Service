@@ -11,31 +11,115 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         -->
         
+<!--        Dropzone scripts, styles and prevention of default drop loading behaviour -->
+        <script src="js/dropzone.js"></script>
+        <link rel="stylesheet" href="css/dropzone.css">
+        <script>
+            window.addEventListener("dragover", function(e) {
+                e = e || event;
+                e.preventDefault();
+            }, false);
+            window.addEventListener("drop", function(e) {
+                e = e || event;
+                e.preventDefault();
+            }, false);
+        </script>
     </head>
     <body>
-        <script src="js/jquery-3.0.0.min.js"></script>
-        <script>
-            
-            $(document).on("dragover drop", function(e) {
-                e.preventDefault();  // allow dropping and don't navigate to file on drop
-            }).on("drop", function(e) {
-                $("input[type='file']")
-                    .prop("files", e.originalEvent.dataTransfer.files)  // put files into element
-                    .closest("form");
-//                      .submit();  // autosubmit as well
-            });
-
-        </script>
-        
         <h1>CESNET TSA JSP Service</h1>
-        <h2>HTML version with simple jQuery script</h2>
+        <h2>Create TimeStamp</h2>
         
         <hr>
         
         <h3>Vyberte soubor k orazítkování</h3>
-        <form action="stamping.jsp" method="POST" enctype="multipart/form-data"> 
-                <input type="file" name="filename" />
-                <input type="submit" />
+            <!--<button id="submit-button">Odeslat</button>-->
+        <form action="stamping.jsp" class="dropzone" id="file-upload" method="POST" enctype="multipart/form-data"> <!-- >-->
+            <script>
+                
+                // "fileUpload" is the camelized version of the HTML element's ID
+                Dropzone.options.fileUpload = {
+//                  paramName: "file", // The name that will be used to transfer the file
+                  maxFilesize: 300, // MB
+                  maxFiles: 1,
+                  uploadMultiple: false,
+                  addRemoveLinks: true,
+                  
+                  // česká lokalizace
+                  dictDefaultMessage: "Sem přetáhněte soubor.",
+                  dictFallbackMessage: "Váš prohlížeč je zastaralý nebo nepodporuje JavaScript, funkčnost stránky byla omezena!",
+                  dictMaxFilesExceeded: "Nelze orazítkovat více souborů najednou!",
+                  
+                  //forceFallback: true, // debug
+                  
+                  // Prevents Dropzone from uploading dropped files immediately
+                  autoProcessQueue: false,
+
+                  init: function() {
+                    var submitButton = document.querySelector("#submit-button");
+                    submitButton.style.visibility='hidden';
+                    var dropzone = this; // closure
+                    
+//                    submitButton.addEventListener("click", function() {
+                    // First change the button to actually tell Dropzone to process the queue.
+                    submitButton.addEventListener("click", function(e) {
+                      // Make sure that the form isn't actually being sent.
+                      e.preventDefault();
+                      e.stopPropagation();
+                      dropzone.processQueue(); // Tell Dropzone to process all queued files.
+                    });
+                    
+                    // Listen to the sending event.
+                    this.on("sending", function() {
+                      // Gets triggered when the form is actually being sent.
+                      submitButton.style.visibility='hidden';
+                    });
+                    this.on("success", function(files, response) {
+                      // Gets triggered when the files have successfully been sent.
+                      console.log(files);
+                      console.log(response);
+                      document.write(response);
+                    });
+                    this.on("error", function(files, response) {
+                      // Gets triggered when there was an error sending the files.
+                      alert("Something went wrong, please try to upload your file again.");
+                      location.reload();
+                    });
+
+                    // Show the submit button only when files are dropped here:
+                    this.on("addedfile", function() {
+                      submitButton.style.visibility='visible';
+                    });
+                    
+                    // You might want to show the submit button only when 
+                    // files are dropped here:
+                    this.on("removedfile", function() {
+                      // Get count of files, if zero, then hide the upload button.
+                      var count= dropzone.files.length;
+                      
+                      if (count === 0) {
+                        submitButton.style.visibility='hidden';
+                      }
+                    });
+                    
+                    // remove thumbnail for extra files
+                    this.on("maxfilesexceeded", function(file) {
+                        this.removeFile(file);
+                    });
+        
+                  }
+                
+                
+                };
+            </script>
+            
+            <div class="dropzone-previews"></div>  <!--this is were the previews should be shown.--> 
+            
+            
+            <div class="fallback">
+                <input type="file" name="file" />
+            </div>
+                <input type="submit" id="submit-button"/>
+            
         </form>
         <br>
         <br>

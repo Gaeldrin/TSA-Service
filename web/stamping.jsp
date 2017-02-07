@@ -19,18 +19,18 @@
         <h1>CESNET Time Stamp Authority JSP</h1>
         
         <%
-            InputStream fileContent = request.getPart("filename").getInputStream();
-            byte[] data = con.getBytesFromInputStream(fileContent);
-            String filename = request.getPart("filename").getSubmittedFileName();
+            InputStream fileContentStream = request.getPart("file").getInputStream();
+            byte[] fileContentByte = con.getBytesFromInputStream(fileContentStream);
+            String filename = request.getPart("file").getSubmittedFileName();
         %>
         <hr>
-        <p>Soubor <code><%= filename %></code> o velikosti <code><%= data.length %></code> bajtů se zpracovává..</p>
+        <p>Soubor <code><%= filename %></code> o velikosti <code><%= fileContentByte.length %></code> bajtů se zpracovává..</p>
         <%
             boolean success = false;
             File file = null;
             String stampName = filename.replace(".", "_").concat("-stamp.tsr");
             try {
-                byte[] timeStampResponse = con.stamp(filename, fileContent);
+                byte[] timeStampResponse = con.stamp(filename, fileContentByte);
 
                 file = File.createTempFile("stamp", ".tsr", new File(System.getProperty("java.io.tmpdir")));
                 file.deleteOnExit();
@@ -40,25 +40,10 @@
                 success = true;
             } catch (Exception e) {}
             
-            /*/
-            var uri = 'data:text/csv;charset=UTF-8,%EF%BB%BF' + encodeURI(CSV);
-            var link = document.createElement("a");
-            link.href = uri;
-            link.style = "visibility:hidden";
-            link.download = fileName + ".csv";
-            //this part will append the anchor tag and remove it after automatic click
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            //*/
-            
             if (success) {
         %>
             <p>
                 Hotovo, stáhněte si razítko <a href="DownloadServ?id=<%=file%>&filename=<%=stampName%>">zde</a>.
-            </p>
-            <p>
-                <i>(už by mělo fungovat :) )</i>
             </p>
         <%
             } else {

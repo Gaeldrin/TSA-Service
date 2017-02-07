@@ -4,6 +4,8 @@
     Author     : Petr
 --%>
 
+<%@page import="com.cesnet.pki.tsa.TSAConnector.Pair"%>
+<%@page import="com.cesnet.pki.tsa.TSAConnector"%>
 <%@page import="java.util.Collection"%>
 <%@page import="java.util.stream.Collectors"%>
 <%@page import="java.util.List"%>
@@ -24,73 +26,17 @@
         
         <ol>
             
-        <%
-        /* load files */
-//        List<Part> fileParts = request.getParts().stream().filter(part -> "files".equals(part.getName())).collect(Collectors.toList()); // Retrieves <input type="file" name="files" multiple />
-          /* file multipart start */
-//        Collection<Part> fileParts = request.getParts();
-//        if (fileParts.size() < 2 || fileParts.size() > 3) {
-            %>
-            <!--<p>Prosím nahrajte tři soubory - Váš soubor, razítko a certifikát.</p>-->
-            <%
-//        } else {
-//            String filename = null, timestampName = null;
-//            byte[] message = null;
-//            TimeStampResponse tsr = null;
-//            String error = "";
-//
-//            int i = 0;
-//            boolean tsrFound = false;
-//            for (Part filePart : fileParts) {
-//                if (i == 2) {
-//                    break;
-//                }
-//                if (!filePart.getName().equals("files")) {
-//                    continue;
-//                }
-//
-//                InputStream is = filePart.getInputStream();
-
-
-//Trying file <%=filePart.getSubmittedFileName()%>
-
-<%
-//                if (tsrFound) {
-//                    message = con.getBytesFromInputStream(is);
-//                    filename = filePart.getSubmittedFileName();
-//                } else {
-//                    byte[] data = con.getBytesFromInputStream(is);
-//                    try {
-//                        tsr = con.parseTSR(data);
-//                    } catch (Exception e) {
-//                        error = e.getClass().getName().concat(": ").concat(e.getMessage());
-//                    }
-//
-//                    if (error.isEmpty()) {
-//                        tsrFound = true;
-//                        timestampName = filePart.getSubmittedFileName();
-//                    } else {
-//                        message = data;
-//                        filename = filePart.getSubmittedFileName();
-//                    }
-//                }
-//                i++;
-//            }
-            
-//            String filename = null, timestampName = null;
+        <%  
+            /* load files */
             byte[] message = null;
             TimeStampResponse tsr = null;
             String error = "";
-            boolean tsrFound = false;
             
-            InputStream origFile = request.getPart("originalFile").getInputStream();
-            String filename = request.getPart("originalFile").getSubmittedFileName();
+            InputStream origFile = request.getPart("file[0]").getInputStream();
+            String filename = request.getPart("file[0]").getSubmittedFileName();
             
-            InputStream timestamp = request.getPart("timestamp").getInputStream();
-            String timestampName = request.getPart("timestamp").getSubmittedFileName();
-            
-            InputStream certIS = request.getPart("cert").getInputStream();
-            String certName = request.getPart("cert").getSubmittedFileName();
+            InputStream timestamp = request.getPart("file[1]").getInputStream();
+            String timestampName = request.getPart("file[1]").getSubmittedFileName();
             
             if (timestampName.isEmpty() || filename.isEmpty()) {
         %>
@@ -98,7 +44,7 @@
             Opravdu jste nahráli oba požadované soubory?</li>
         </ol>
         <br>
-        <br>
+        <br>        > obsolete part <
         <hr>
         <i><a href="index.html">Návrat na hlavní stránku</a></i>
     </body>
@@ -108,19 +54,26 @@
                 return;
             }
                 
-            
-            try {
-                message = con.getBytesFromInputStream(origFile);
-                tsr = con.parseTSR(con.getBytesFromInputStream(timestamp));
-                tsrFound = true;
-            } catch (Exception e) {
-                error = e.getClass().getName().concat(": ").concat(e.getMessage());
+            byte[] data1 = con.getBytesFromInputStream(origFile);
+            byte[] data2 = con.getBytesFromInputStream(timestamp);
+
+            byte[][] files = new byte[2][];
+            files[0] = data1;
+            files[1] = data2;
+
+            Pair p = con.findTS(files);
+            tsr = p.tsr;
+            message = p.msg;
+
+            if (message == data2) {
+                String temp = filename;
+                filename = timestampName;
+                timestampName = temp;
             }
             
-            if (!error.isEmpty()) {
+            if (tsr == null) {
         %>
         <li><h3>Razítko se nepodařilo přečíst!</h3>
-            Opravdu je <code><%=timestampName%></code> časové razítko?</li>
         <p>Detaily:<br>
         <%=error%></p>
         
@@ -151,37 +104,94 @@
                 } else {
             %>
             <li><h3>Razítko bylo úspěšně ověřeno.</h3>
-                Razítko náleží souboru <code><%=filename%></code> a soubor nebyl změněn od <code><%=tsr.getTimeStampToken().getTimeStampInfo().getGenTime()%></code>.</li>
+                <p>Razítko náleží souboru <code><%=filename%></code>.</p>
+            
+                <b>Detaily razítka:</b>
+                <code><table>
+                    <tr>
+                        <td>Time:</td>
+                        <td><%=tsr.getTimeStampToken().getTimeStampInfo().getGenTime()%></td>
+                    </tr>
+                    <tr>
+                        <td>TSA:</td>
+                        <td><%=tsr.getTimeStampToken().getTimeStampInfo().getTsa()%></td>
+                    </tr>
+                    <tr>
+                        <td>Serial number:</td>
+                        <td><%=tsr.getTimeStampToken().getTimeStampInfo().getSerialNumber()%></td>
+                    </tr>
+                    <tr>
+                        <td>Policy:</td>
+                        <td><%=tsr.getTimeStampToken().getTimeStampInfo().getPolicy()%>
+                            [<%=con.getDigestAlg(tsr.getTimeStampToken().getTimeStampInfo().getMessageImprintAlgOID()).getAlgorithmName()%>]</td>
+                    </tr>
+                </table></code>
+                </p>
+            </li>
             
                 <%
-                    if (certName.isEmpty()) {
-                    %>
-                    <li><h3>Neposkytli jste soubor certifikátu.</h3>
-                         Nenahráli jste certifikát příslušné certifikační autority k ověření pravosti razítka.</li>
-
-                    <%
-                    } else {
+                    if (con.containsCertificate(tsr)) {
                         try {
-                            con.verifyCertificate(tsr, certIS);
+                            con.verifyCertificateIncluded(tsr.getTimeStampToken());
                         } catch (Exception e) {
                             error = e.getClass().getName().concat(": ").concat(e.getMessage());
                         }
 
                         if (!error.isEmpty()) {
+                %>
+                    <li><h3>Razítko není důvěryhodné.</h3>
+                        Razítko obsahuje certifikát, který nebyl použit při podepsání razítka nebo není důvěryhodný.</li>
+                    <p>Detaily:<br>
+                    <%=error%></p>
+                        <%
+                        } else {    
+                        %>
+                    <li><h3>Razítko je důvěryhodné.</h3>
+                        Razítko obsahuje důvěryhodný certifikát, který byl použit při podepsání razítka.
+                        <%
+                        }
+                    } else {
+                        InputStream certIS = null;
+                        String certName = null;
+                        try {
+                            certIS = request.getPart("file[2]").getInputStream();
+                            certName = request.getPart("file[2]").getSubmittedFileName();
+                        } catch (Exception e) {}
+                        
+                        if (certIS == null || certName.isEmpty()) {
+                    %>
+                    <li><h3>Nelze ověřit pravost razítka.</h3>
+                         <p>Výše uvedené časové razítko neobsahuje certifikát, jímž bylo podepsáno,
+                             ani jste nenahráli certifikát příslušné certifikační autority k ověření pravosti razítka.</p>
+                        Pokud máte příslušný certifikát, přidejte jej prosím k razítku.</li>
+                    
+
+                    <%
+                        } else {
+                            try {
+                                con.verifyCertificateFile(tsr, certIS);
+                            } catch (Exception e) {
+                                error = e.getClass().getName().concat(": ").concat(e.getMessage());
+                            }
+
+                            if (!error.isEmpty()) {
                     %>
                     <li><h3>Vámi nahraný certifikát neodpovídá certifikátu razítka!</h3>
-                         K podepsání razítka byl použit jiný certifikát, než který jste nahráli. Zkontrolujte prosím správnost certifikátu.</li>
+                         K podepsání razítka byl použit jiný certifikát, než který jste nahráli, nebo certifikát není důvěryhodný.
+                         <br>
+                         Zkontrolujte prosím správnost certifikátu.</li>
                     <p>Detaily:<br>
                     <%=error%></p>
 
             <%
-                        } else {
+                            } else {
                             %>
                             <li><h3>Razítko je důvěryhodné.</h3>
                                 K vytvoření razítka byl použit Vámi nahraný certifikát <code><%=certName%></code>.</li>
 
                             <%
                         // end
+                            }
                         }
                     }
                 }

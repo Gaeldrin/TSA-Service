@@ -8,6 +8,20 @@
         <title>CESNET</title>
         <meta name="description" content="File upload">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+<!--        Dropzone scripts, styles and prevention of default drop loading behaviour -->
+        <script src="js/dropzone.js"></script>
+        <link rel="stylesheet" href="css/dropzone.css">
+        <script>
+            window.addEventListener("dragover", function(e) {
+                e = e || event;
+                e.preventDefault();
+            }, false);
+            window.addEventListener("drop", function(e) {
+                e = e || event;
+                e.preventDefault();
+            }, false);
+        </script>
     </head>
     
     <body>
@@ -17,29 +31,110 @@
         <hr>
         
         <h3>Vyberte orazítkovaný soubor a příslušné razítko:</h3>
-        <form id="verification" action="verification.jsp" method="POST" enctype="multipart/form-data">
-            <table>
-                <tr>
-                    <td></td>
-                    <td>Orazítkovaný soubor:</td>
-                    <td><input type="file" name="originalFile" /></td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>Razítko (.tsr):</td>
-                    <td><input type="file" name="timestamp" /></td>
-                </tr>
-                <tr>
-                    <td><i>(volitelně) </i></td>
-                    <td>Certifikát (.pem):</td>
-                    <td><input type="file" name="cert" /></td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td></td>
-                    <td align="right"><input type="submit" /></td>
-                </tr>
-            </table>
+        <form id="verification" action="verification.jsp" class="dropzone" method="POST" enctype="multipart/form-data">
+            <script>
+                // "verification" is the camelized version of the HTML element's ID
+                Dropzone.options.verification = {
+//                  paramName: "file[0]", // The name that will be used to transfer the file
+                  maxFilesize: 300, // MB
+                  maxFiles: 2,
+                //parallelUploads: 2, // potential upgrade but didn't see any problems with only 2-3 files
+                  uploadMultiple: true,
+                  addRemoveLinks: true,
+                  
+                  // česká lokalizace
+                  dictDefaultMessage: "Sem přetáhněte soubory.",
+                  dictFallbackMessage: "Váš prohlížeč je zastaralý nebo nepodporuje JavaScript, funkčnost stránky byla omezena!",
+                  dictMaxFilesExceeded: "Nahrajte maximálně 3 soubory!",
+                  
+//                  forceFallback: true, // debug
+                  
+                  // Prevents Dropzone from uploading dropped files immediately
+                  autoProcessQueue: false,
+
+                  init: function() {
+                    var submitButton = document.querySelector("#submit-button");
+                    submitButton.style.visibility='hidden';
+                    var dropzone = this; // closure
+
+                    // First change the button to actually tell Dropzone to process the queue.
+                    submitButton.addEventListener("click", function(e) {
+                      // Make sure that the form isn't actually being sent.
+                      e.preventDefault();
+                      e.stopPropagation();
+                      dropzone.processQueue(); // Tell Dropzone to process all queued files.
+                    });
+                    
+                    // Listen to the sendingmultiple event. In this case, it's the sendingmultiple event instead
+                    // of the sending event because uploadMultiple is set to true.
+                    this.on("sendingmultiple", function() {
+                      // Gets triggered when the form is actually being sent.
+                      submitButton.style.visibility='hidden';
+                    });
+                    this.on("successmultiple", function(files, response) {
+                      // Gets triggered when the files have successfully been sent.
+                      document.write(response);
+                    });
+                    this.on("errormultiple", function(files, response) {
+                      // Gets triggered when there was an error sending the files.
+                      alert("Something went wrong, please try to upload your file again.");
+                      location.reload();
+                    });
+                    
+                    this.on("addedfile", function() {
+                      // Get count of files, show the upload button if at least 2.
+                      var count= dropzone.files.length;
+                      
+                      if (count >= 2) {
+                        submitButton.style.visibility='visible';
+                      }
+                    });
+                    
+                    this.on("removedfile", function() {
+                      // Get count of files, hide the upload button if less than 2.
+                      var count= dropzone.files.length;
+                      
+                      if (count < 2) {
+                        submitButton.style.visibility='hidden';
+                      }
+                    });
+                    
+                    // remove thumbnail for extra files
+                    this.on("maxfilesexceeded", function(file) {
+                        this.removeFile(file);
+                    });
+                  }
+                };
+            </script>
+            
+            <div class="dropzone-previews"></div>  <!--this is were the previews should be shown.--> 
+            
+            <div class="fallback">
+                <table>
+                    <tr>
+                        <td></td>
+                        <td>Orazítkovaný soubor:</td>
+                        <td><input type="file" name="file[0]" /></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>Razítko (.tsr):</td>
+                        <td><input type="file" name="file[1]" /></td>
+                    </tr>
+                    <tr>
+                        <td><i>(volitelně) </i></td>
+                        <td>Certifikát (.pem):</td>
+                        <td><input type="file" name="file[2]" /></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td></td>
+<!--                        <td align="right"><input type="submit" /></td>-->
+                    </tr>
+                </table>
+            </div>
+            
+            <input type="submit" id="submit-button"/>
         </form>
         
         <br>
