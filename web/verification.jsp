@@ -139,8 +139,8 @@
 
                         if (!error.isEmpty()) {
                 %>
-                    <li><h3>Razítko není důvěryhodné.</h3>
-                        Razítko obsahuje certifikát, který nebyl použit při podepsání razítka nebo není důvěryhodný.</li>
+                    <li><h3>Razítko není důvěryhodné!</h3>
+                        Razítko obsahuje certifikát, který není v pořádku.</li>
                     <p>Detaily:<br>
                     <%=error%></p>
                         <%
@@ -161,9 +161,7 @@
                         if (certIS == null || certName.isEmpty()) {
                     %>
                     <li><h3>Nelze ověřit pravost razítka.</h3>
-                         <p>Výše uvedené časové razítko neobsahuje certifikát, jímž bylo podepsáno,
-                             ani jste nenahráli certifikát příslušné certifikační autority k ověření pravosti razítka.</p>
-                        Pokud máte příslušný certifikát, přidejte jej prosím k razítku.</li>
+                         <p>Výše uvedené časové razítko neobsahuje certifikát, jímž bylo podepsáno.</li>
                     
 
                     <%
