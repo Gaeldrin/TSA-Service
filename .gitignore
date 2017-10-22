@@ -1,17 +1,29 @@
-/web/index.html.b
-/web/jquery-ui.html
+# NetBeans + Intellij git ignore file
+/nbproject/
+/.idea/
+
+# output directories
+/build/
+/dist/
+/out/
+
+# legacy files etc.
+
+/jquery-ui/
+/uploadify/
+
+/src/TSA-Service.iml
+
 /web/js/
 /web/css/
-/dist/
-/out/production/TSA-Service/com/cesnet/pki/tsa/DownloadServ.class
-/out/production/TSA-Service/com/cesnet/pki/tsa/TSAConnector$Pair.class
-/out/production/TSA-Service/com/cesnet/pki/tsa/TSAConnector.class
-/.idea/libraries/lib.xml
-/.idea/workspace.xml
-/.idea/modules.xml
-/.idea/misc.xml
-/.idea/vcs.xml
-/src/TSA-Service.iml
+/web/uploadify/
+
 /web/iframe.html
 /web/web.iml
-/out/production/TSA-Service/log4j2.xml
+/web/index.html.b
+/web/jquery-ui.html
+
+/web/simple.html
+/web/stamp-chrome.html
+/web/stamp-jUI.html
+/web/stamp-upl.html
