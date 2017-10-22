@@ -28,8 +28,8 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.logging.Level;
 import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cms.CMSException;
 import org.bouncycastle.cms.DefaultCMSSignatureAlgorithmNameGenerator;
 import org.bouncycastle.cms.SignerInformation;
@@ -53,10 +53,11 @@ import org.bouncycastle.util.CollectionStore;
 public class TSAConnector {
     private static final Logger logger = LogManager.getLogger();
     public final String server = "http://tsa.cesnet.cz:3161/tsa";
+//    public final String server = "https://tsa-dev.cesnet.cz:8442/signserver/tsa?workerName=TimeStampSigner";
     
     // <editor-fold defaultstate="collapsed" desc="legacy main method for testing purposes">
     //
-    public static void main(String[] args) throws IOException, TSPException {
+    public static void main(String[] args) throws IOException, TSPException, Exception {
         TSAConnector connector = new TSAConnector();
 
 //        if (args.length != 2) {
@@ -67,11 +68,13 @@ public class TSAConnector {
 //        String filename = args[0];
 //        String saveName = args[1];
 
-    TimeStampResponse tsr = connector.parseTSR(connector.readFileByte("D:\\Downloads\\achjo_png-stamp.tsr"));
-    byte[][] bytesArray = new byte[2][];
-    bytesArray[0] = new byte[]{1,2};
-    bytesArray[1] = connector.readFileByte("D:\\Downloads\\achjo_png-stamp.tsr");
-        System.out.println("i: "+connector.findTS(bytesArray));
+//        TimeStampResponse tsr = connector.parseTSR(connector.readFileByte("D:\\Downloads\\achjo_png-stamp.tsr"));
+//        TimeStampResponse tsr = connector.parseTSR(connector.readFileByte("/home/geralt/Desktop/cesnet/razitka-ukazka/ss_zaklad-stamp.tsr"));
+//    byte[][] bytesArray = new byte[2][];
+//    bytesArray[0] = new byte[]{1,2};
+//    bytesArray[1] = connector.readFileByte("D:\\Downloads\\achjo_png-stamp.tsr");
+//        System.out.println("i: "+connector.findTS(bytesArray));
+
 //    connector.logResponse(tsr);
 //        try {
 //            connector.verify(new FileInputStream("D:\\MATLAB\\R2013a\\bin\\mex.bat"), new FileInputStream("C:\\Users\\Petr\\Downloads\\mex_bat-stamp.tsr"));
@@ -81,7 +84,11 @@ public class TSAConnector {
 //            java.util.logging.Logger.getLogger(TSAConnector.class.getName()).log(Level.SEVERE, null, ex);
 //        }
 
-//    connector.saveToFile("uber.tsr", connector.stamp("mex.bat", new FileInputStream("D:\\MATLAB\\R2013a\\bin\\mex.bat")));
+    // method to save the timestamp
+//    connector.saveToFile("fact.tsr", connector.stamp("mex.bat", connector.readFileByte("/mnt/1C88A3ED88A3C39C/factorio.txt")));
+
+    // method to verify the timestamp
+    connector.verify(connector.readFileByte("D:\\Dropbox\\cesnet\\razitka-ukazka\\ss_chain"), connector.readFileByte("D:\\Dropbox\\cesnet\\razitka-ukazka\\ss_chain-stamp.tsr"));
     }
     // */
     // </editor-fold>
@@ -152,12 +159,12 @@ public class TSAConnector {
      * @throws CertificateEncodingException
      * @throws OperatorCreationException 
      */
-    public void verify(InputStream originalFile, InputStream timeStamp) throws IOException, TSPException, CertificateException, CertificateEncodingException, OperatorCreationException, CertificateExpiredException, CertificateNotYetValidException, CMSException {
+    public void verify(byte[] originalFile, byte[] timeStamp) throws IOException, TSPException, CertificateException, CertificateEncodingException, OperatorCreationException, CertificateExpiredException, CertificateNotYetValidException, CMSException {
         logger.entry();
         
         // open files
-        byte[] file = getBytesFromInputStream(originalFile);
-        TimeStampResponse tsr = parseTSR(getBytesFromInputStream(timeStamp));
+//        byte[] file = getBytesFromInputStream(originalFile);
+        TimeStampResponse tsr = parseTSR(timeStamp);//getBytesFromInputStream(timeStamp));
         
         logger.info("The timestamp was sucessfully opened.");
         logResponse(tsr);
@@ -169,7 +176,7 @@ public class TSAConnector {
         logger.info("The timestamp's algorithm was recognized as {}.", digestAlgorithm.getAlgorithmName());
         
         // create new hashed request
-        byte[] digest = calculateMessageDigest(file, digestAlgorithm);
+        byte[] digest = calculateMessageDigest(originalFile, digestAlgorithm);
         TimeStampRequest tsq = getTSRequest(digest, algID);
         
         // compare hashes
@@ -181,15 +188,10 @@ public class TSAConnector {
         }
         
         logger.info("The timestamp fits the file (the file was not changed), now verifying certificates..");
-        
-        InputStream is = null;
-        
-        if (is == null) {
-            throw new UnsupportedOperationException("Timestamp fits the file (the file was not changed), certificate not implemented yet.");
-        }
 
         if (containsCertificate(tsr)) {
             // verify included certificate
+            logger.info("Found certificates included in the Timestamp.");
             try {
                 verifyCertificateIncluded(tsr.getTimeStampToken());
             } catch (CertificateExpiredException | CertificateNotYetValidException | CMSException e) {
@@ -218,7 +220,7 @@ public class TSAConnector {
         CollectionStore certs = (CollectionStore) tsr.getTimeStampToken().getCertificates();
         
         int certsCount = 0;
-        for (Iterator it = certs.iterator(); it.hasNext();) {
+        for (Iterator it = certs.iterator(); it.hasNext(); it.next()) {
             certsCount++; // stupid hack to get actual number of certificates
         }
         
@@ -229,24 +231,24 @@ public class TSAConnector {
         return true;
     }
     
-    public void verifyCertificateIncluded(TimeStampToken tst) throws CertificateExpiredException, CertificateNotYetValidException, CMSException, OperatorCreationException {
+    public void verifyCertificateIncluded(TimeStampToken tst) throws CertificateExpiredException, CertificateNotYetValidException, CMSException, OperatorCreationException, CertificateException {
         // get certificates
         CollectionStore certs = (CollectionStore) tst.getCertificates();
         SignerInformationStore signers = tst.toCMSSignedData().getSignerInfos();
         
         for (SignerInformation signer : signers) {
-            Collection<X509Certificate> col = certs.getMatches(signer.getSID());
-            X509Certificate[] signerCerts = new X509Certificate[0];
-            col.toArray(signerCerts);
+            Collection<X509CertificateHolder> col = certs.getMatches(signer.getSID());
             
-            if (signerCerts.length != 1) {
+            if (col.size() == 1) {
                 logger.error("Expected only one certificate per signer.");
-                return;
+                throw new CertificateException("Expected only one certificate per signer.");
             }
             
-            signerCerts[0].checkValidity();
+            X509Certificate signCert = new JcaX509CertificateConverter().getCertificate(col.stream().findAny().get());
             
-            signer.verify(new JcaSimpleSignerInfoVerifierBuilder().build(signerCerts[0])); // should verify that the timestamp is signed correctly
+            signCert.checkValidity();
+            
+            signer.verify(new JcaSimpleSignerInfoVerifierBuilder().build(signCert)); // should verify that the timestamp is signed correctly
         }
     }
     
@@ -483,6 +485,8 @@ public class TSAConnector {
      */
     private TimeStampRequest getTSRequest(byte[] digest, ASN1ObjectIdentifier requestAlg) {
         TimeStampRequestGenerator tsqGenerator = new TimeStampRequestGenerator();
+        
+        tsqGenerator.setCertReq(true); // OVERIT!!!! melo by zpusobit, ze ve vydanem razitku bude pritomny retez certifikatu
 
         return tsqGenerator.generate(requestAlg, digest);
     }
