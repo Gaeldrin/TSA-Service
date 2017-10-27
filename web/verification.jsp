@@ -4,6 +4,11 @@
     Author     : Petr
 --%>
 
+<%@page import="org.bouncycastle.cert.jcajce.JcaX509CertificateConverter"%>
+<%@page import="org.bouncycastle.cert.X509CertificateHolder"%>
+<%@page import="java.security.cert.X509Certificate"%>
+<%@page import="java.util.Iterator"%>
+<%@page import="org.bouncycastle.util.CollectionStore"%>
 <%@page import="com.cesnet.pki.tsa.TSAConnector.Pair"%>
 <%@page import="com.cesnet.pki.tsa.TSAConnector"%>
 <%@page import="java.util.Collection"%>
@@ -114,7 +119,7 @@
                     </tr>
                     <tr>
                         <td>TSA:</td>
-                        <td><%=tsr.getTimeStampToken().getTimeStampInfo().getTsa()%></td>
+                        <td><%=tsr.getTimeStampToken().getTimeStampInfo().getTsa().getName()%></td>
                     </tr>
                     <tr>
                         <td>Serial number:</td>
@@ -142,12 +147,22 @@
                     <li><h3>Razítko není důvěryhodné!</h3>
                         Razítko obsahuje certifikát, který není v pořádku.</li>
                     <p>Detaily:<br>
-                    <%=error%></p>
+                        <code><%=error%></code></p>
                         <%
-                        } else {    
+                        } else {
+                                CollectionStore certs = (CollectionStore) tsr.getTimeStampToken().getCertificates();
+                                X509Certificate rootCert = null; // root cert expected to be the last one
+                                for (Iterator it = certs.iterator(); it.hasNext();) {
+                                     rootCert = new JcaX509CertificateConverter().getCertificate((X509CertificateHolder) it.next());
+                                }
                         %>
                     <li><h3>Razítko je důvěryhodné.</h3>
-                        Razítko obsahuje důvěryhodný certifikát, který byl použit při podepsání razítka.
+                        <p>Razítko obsahuje důvěryhodný certifikát, který byl použit při podepsání razítka.</p>
+                        
+                        <b>Nadřazený certifikát:</b><br>
+                        <code>
+                            DN: <%=rootCert.getIssuerX500Principal().getName()%>
+                        </code>
                         <%
                         }
                     } else {
@@ -199,6 +214,7 @@
             
         </ol>
         <br>
+        <p>Kořenové certifikáty CESNETu stahujte <a href="https://pki.cesnet.cz/cs/ch-cca-crt-crl.html">zde</a>.</p>
         <br>
         <hr>
         <i><a href="index.html">Návrat na hlavní stránku</a></i>
