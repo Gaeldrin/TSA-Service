@@ -4,19 +4,17 @@
     Author     : Petr
 --%>
 
-<%@page import="org.bouncycastle.cert.jcajce.JcaX509CertificateConverter"%>
-<%@page import="org.bouncycastle.cert.X509CertificateHolder"%>
-<%@page import="java.security.cert.X509Certificate"%>
-<%@page import="java.util.Iterator"%>
-<%@page import="org.bouncycastle.util.CollectionStore"%>
 <%@page import="com.cesnet.pki.tsa.TSAConnector.Pair"%>
-<%@page import="com.cesnet.pki.tsa.TSAConnector"%>
+<%@page import="java.io.InputStream"%>
 <%@page import="java.util.Collection"%>
-<%@page import="java.util.stream.Collectors"%>
-<%@page import="java.util.List"%>
+<%@page import="java.util.Iterator"%>
+<%@page import="java.security.cert.X509Certificate"%>
+<%@page import="org.bouncycastle.cert.X509CertificateHolder"%>
+<%@page import="org.bouncycastle.cert.jcajce.JcaX509CertificateConverter"%>
+<%@page import="org.bouncycastle.util.CollectionStore"%>
 <%@page import="org.bouncycastle.tsp.TimeStampRequest"%>
 <%@page import="org.bouncycastle.tsp.TimeStampResponse"%>
-<%@page import="java.io.InputStream"%>
+
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <!DOCTYPE html>
 <html>

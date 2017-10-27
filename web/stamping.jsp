@@ -4,10 +4,9 @@
     Author     : Petr
 --%>
 
-<%@page import="org.bouncycastle.tsp.TimeStampResponse"%>
-<%@page import="java.io.File"%>
-<%@page import="java.io.FileOutputStream"%>
 <%@page import="java.io.InputStream"%>
+<%@page import="org.bouncycastle.tsp.TimeStampResponse"%>
+
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <!DOCTYPE html>
 <html>
