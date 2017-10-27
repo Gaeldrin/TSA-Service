@@ -54,6 +54,7 @@ public class TSAConnector {
     private static final Logger logger = LogManager.getLogger();
 //    public final String server = "http://tsa.cesnet.cz:3161/tsa";
     public final String server = "https://tsa-dev.cesnet.cz:8442/signserver/tsa?workerName=TimeStampSigner";
+    public byte[] timeStampResponse;
     
     // <editor-fold defaultstate="collapsed" desc="legacy main method for testing purposes">
     //
@@ -239,7 +240,7 @@ public class TSAConnector {
         for (SignerInformation signer : signers) {
             Collection<X509CertificateHolder> col = certs.getMatches(signer.getSID());
             
-            if (col.size() == 1) {
+            if (col.size() != 1) {
                 logger.error("Expected only one certificate per signer.");
                 throw new CertificateException("Expected only one certificate per signer.");
             }
@@ -675,7 +676,7 @@ public class TSAConnector {
      */
     private void logResponse(final TimeStampResponse tsr) {
         logger.info("Timestamp: {}", tsr.getTimeStampToken().getTimeStampInfo().getGenTime());
-        logger.info("TSA: {}", tsr.getTimeStampToken().getTimeStampInfo().getTsa());
+        logger.info("TSA: {}", tsr.getTimeStampToken().getTimeStampInfo().getTsa().getName());
         logger.info("Serial number: {}", tsr.getTimeStampToken().getTimeStampInfo().getSerialNumber());
         logger.info("Policy: {}", tsr.getTimeStampToken().getTimeStampInfo().getPolicy());
     }
