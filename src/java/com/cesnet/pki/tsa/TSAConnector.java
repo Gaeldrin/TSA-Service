@@ -1,14 +1,5 @@
 package com.cesnet.pki.tsa;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.bouncycastle.asn1.ASN1InputStream;
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.tsp.TimeStampResp;
-import org.bouncycastle.crypto.ExtendedDigest;
-import org.bouncycastle.crypto.digests.*;
-import org.bouncycastle.tsp.*;
-
 import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -28,6 +19,12 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.tsp.TimeStampResp;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cms.CMSException;
@@ -37,10 +34,20 @@ import org.bouncycastle.cms.SignerInformationStore;
 import org.bouncycastle.cms.SignerInformationVerifier;
 import org.bouncycastle.cms.bc.BcRSASignerInfoVerifierBuilder;
 import org.bouncycastle.cms.jcajce.JcaSimpleSignerInfoVerifierBuilder;
+import org.bouncycastle.crypto.ExtendedDigest;
+import org.bouncycastle.crypto.digests.GeneralDigest;
+import org.bouncycastle.crypto.digests.SHA1Digest;
+import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.bc.BcDigestCalculatorProvider;
+import org.bouncycastle.tsp.TSPAlgorithms;
+import org.bouncycastle.tsp.TSPException;
+import org.bouncycastle.tsp.TimeStampRequest;
+import org.bouncycastle.tsp.TimeStampRequestGenerator;
+import org.bouncycastle.tsp.TimeStampResponse;
+import org.bouncycastle.tsp.TimeStampToken;
 import org.bouncycastle.util.CollectionStore;
 
 /**
@@ -51,9 +58,10 @@ import org.bouncycastle.util.CollectionStore;
  * Created by Petr Vsetecka on 3. 2. 2016.
  */
 public class TSAConnector {
-    private static final Logger logger = LogManager.getLogger();
+    private static final Logger LOG = LogManager.getLogger();
 //    public final String server = "http://tsa.cesnet.cz:3161/tsa";
     public final String server = "https://tsa-dev.cesnet.cz:8442/signserver/tsa?workerName=TimeStampSigner";
+    public byte[] timeStampResponse;
     
     // <editor-fold defaultstate="collapsed" desc="legacy main method for testing purposes">
     //
@@ -104,9 +112,9 @@ public class TSAConnector {
      * @throws org.bouncycastle.tsp.TSPException 
      */
     public byte[] stamp(String filename, byte[] fileContent) throws IOException, TSPException {
-        logger.entry();
+        LOG.entry();
 
-        logger.info("File to be stamped: {}", filename);
+        LOG.info("File to be stamped: {}", filename);
 //        byte[] file = getBytesFromInputStream(is);
         
         ExtendedDigest digestAlgorithm = new SHA256Digest(); // select hash algorithm
@@ -114,25 +122,25 @@ public class TSAConnector {
         try {
             requestAlgorithm = getHashObjectIdentifier(digestAlgorithm.getAlgorithmName());
         } catch (IllegalArgumentException e) {
-            logger.catching(e);
+            LOG.catching(e);
             throw e;
         }
-        logger.info("Selected algorithm: {}", digestAlgorithm.getAlgorithmName());
+        LOG.info("Selected algorithm: {}", digestAlgorithm.getAlgorithmName());
 
         // create request
         byte[] digest = calculateMessageDigest(fileContent, digestAlgorithm);
         TimeStampRequest tsq = getTSRequest(digest, requestAlgorithm);
-        logger.debug("TS request generated");
+        LOG.debug("TS request generated");
 
         // send request and receive response
         TimeStampResponse tsr;
         try {
             tsr = getTSResponse(tsq, server);
         } catch (IOException | TSPException e) {
-            logger.catching(e);
+            LOG.catching(e);
             throw e;
         }
-        logger.debug("TSA response received");
+        LOG.debug("TSA response received");
 
         // log reason of failure
         if (tsr.getFailInfo() != null) {
@@ -143,7 +151,7 @@ public class TSAConnector {
         // log response
         logResponse(tsr);
 
-        logger.exit();
+        LOG.exit();
         return tsr.getEncoded();
     }
     
@@ -153,27 +161,30 @@ public class TSAConnector {
      * 
      * @param originalFile
      * @param timeStamp
-     * @throws IOException
-     * @throws TSPException
-     * @throws CertificateException
-     * @throws CertificateEncodingException
-     * @throws OperatorCreationException 
+     * @throws java.io.IOException
+     * @throws org.bouncycastle.tsp.TSPException
+     * @throws java.security.cert.CertificateException
+     * @throws java.security.cert.CertificateEncodingException
+     * @throws org.bouncycastle.operator.OperatorCreationException
+     * @throws java.security.cert.CertificateExpiredException
+     * @throws java.security.cert.CertificateNotYetValidException
+     * @throws org.bouncycastle.cms.CMSException
      */
     public void verify(byte[] originalFile, byte[] timeStamp) throws IOException, TSPException, CertificateException, CertificateEncodingException, OperatorCreationException, CertificateExpiredException, CertificateNotYetValidException, CMSException {
-        logger.entry();
+        LOG.entry();
         
         // open files
 //        byte[] file = getBytesFromInputStream(originalFile);
         TimeStampResponse tsr = parseTSR(timeStamp);//getBytesFromInputStream(timeStamp));
         
-        logger.info("The timestamp was sucessfully opened.");
+        LOG.info("The timestamp was sucessfully opened.");
         logResponse(tsr);
         
         // get hash algorithm
         ASN1ObjectIdentifier algID = tsr.getTimeStampToken().getTimeStampInfo().getMessageImprintAlgOID();
         GeneralDigest digestAlgorithm = getDigestAlg(algID);
         
-        logger.info("The timestamp's algorithm was recognized as {}.", digestAlgorithm.getAlgorithmName());
+        LOG.info("The timestamp's algorithm was recognized as {}.", digestAlgorithm.getAlgorithmName());
         
         // create new hashed request
         byte[] digest = calculateMessageDigest(originalFile, digestAlgorithm);
@@ -183,31 +194,31 @@ public class TSAConnector {
         try {
             tsr.validate(tsq);
         } catch (TSPException e) {
-            logger.catching(e);
+            LOG.catching(e);
             throw e;
         }
         
-        logger.info("The timestamp fits the file (the file was not changed), now verifying certificates..");
+        LOG.info("The timestamp fits the file (the file was not changed), now verifying certificates..");
 
         if (containsCertificate(tsr)) {
             // verify included certificate
-            logger.info("Found certificates included in the Timestamp.");
+            LOG.info("Found certificates included in the Timestamp.");
             try {
                 verifyCertificateIncluded(tsr.getTimeStampToken());
             } catch (CertificateExpiredException | CertificateNotYetValidException | CMSException e) {
-                logger.catching(e);
+                LOG.catching(e);
                 throw e;
             }
             
-            logger.info("All certificates successfully verified, the timestamp is trusted.");
+            LOG.info("All certificates successfully verified, the timestamp is trusted.");
         } else {
-            logger.info("No certificate found.");
+            LOG.info("No certificate found.");
         
             // verify certificate from external file
 //            verifyCertificate(tsr, new FileInputStream("path\\to\\cert.pem"));
         }
         
-        logger.exit();
+        LOG.exit();
     }
     
     /**
@@ -224,13 +235,18 @@ public class TSAConnector {
             certsCount++; // stupid hack to get actual number of certificates
         }
         
-        if (certsCount < 1) {
-            return false;
-        }
-        
-        return true;
+        return certsCount > 0;
     }
     
+    /**
+     * checks validity of certificates enclosed in Timestamp response
+     * 
+     * @param tst
+     * @throws java.security.cert.CertificateExpiredException
+     * @throws java.security.cert.CertificateNotYetValidException
+     * @throws org.bouncycastle.cms.CMSException
+     * @throws org.bouncycastle.operator.OperatorCreationException
+     */
     public void verifyCertificateIncluded(TimeStampToken tst) throws CertificateExpiredException, CertificateNotYetValidException, CMSException, OperatorCreationException, CertificateException {
         // get certificates
         CollectionStore certs = (CollectionStore) tst.getCertificates();
@@ -239,8 +255,8 @@ public class TSAConnector {
         for (SignerInformation signer : signers) {
             Collection<X509CertificateHolder> col = certs.getMatches(signer.getSID());
             
-            if (col.size() == 1) {
-                logger.error("Expected only one certificate per signer.");
+            if (col.size() != 1) {
+                LOG.error("Expected only one certificate per signer.");
                 throw new CertificateException("Expected only one certificate per signer.");
             }
             
@@ -253,15 +269,15 @@ public class TSAConnector {
     }
     
     /**
-     * verifies if the TSR was generated by TSA using given certificate
+     * verifies if the TSR was generated by TSA using given certificate - untested
      * 
      * @param tsr
      * @param certStream
-     * @throws CertificateException
-     * @throws IOException
-     * @throws CertificateEncodingException
-     * @throws OperatorCreationException
-     * @throws TSPException 
+     * @throws java.security.cert.CertificateException
+     * @throws java.io.IOException
+     * @throws java.security.cert.CertificateEncodingException
+     * @throws org.bouncycastle.operator.OperatorCreationException
+     * @throws org.bouncycastle.tsp.TSPException
      */
     public void verifyCertificateFile(TimeStampResponse tsr, InputStream certStream)
             throws CertificateException, IOException, CertificateEncodingException, OperatorCreationException, TSPException {
@@ -272,7 +288,7 @@ public class TSAConnector {
             factory = CertificateFactory.getInstance("X.509");
             cert = (X509Certificate) factory.generateCertificate(certStream);
         } catch (CertificateException e) {
-            logger.catching(e);
+            LOG.catching(e);
             throw e;
         }
 
@@ -285,7 +301,7 @@ public class TSAConnector {
                     new DefaultCMSSignatureAlgorithmNameGenerator(), new DefaultSignatureAlgorithmIdentifierFinder(),
                     new DefaultDigestAlgorithmIdentifierFinder(), new BcDigestCalculatorProvider()).build(holder);
         } catch (CertificateEncodingException | OperatorCreationException e) {
-            logger.catching(e);
+            LOG.catching(e);
             throw e;
         }
 
@@ -296,7 +312,7 @@ public class TSAConnector {
         try {
             tsr.getTimeStampToken().validate(siv);
         } catch (TSPException e) {
-            logger.catching(e);
+            LOG.catching(e);
             throw e;
         }
     }
@@ -321,15 +337,15 @@ public class TSAConnector {
      * 
      * @param timeStamp
      * @return
-     * @throws IOException
-     * @throws TSPException 
+     * @throws java.io.IOException
+     * @throws org.bouncycastle.tsp.TSPException
      */
     public TimeStampResponse parseTSR(byte[] timeStamp) throws IOException, TSPException {
         TimeStampResponse tsr;
         try {
             tsr = new TimeStampResponse(timeStamp);
         } catch (TSPException e) {
-            logger.catching(e);
+            LOG.catching(e);
             throw e;
         }
         
@@ -349,7 +365,7 @@ public class TSAConnector {
             return new SHA256Digest();
         } else {
             IllegalArgumentException e = new IllegalArgumentException("Selected timestamp was not created using supported (SHA-1 or SHA-256) algorithm.");
-            logger.catching(e);
+            LOG.catching(e);
             throw e;
         }
     }
@@ -366,7 +382,7 @@ public class TSAConnector {
         ASN1ObjectIdentifier algID = tsr.getTimeStampToken().getTimeStampInfo().getMessageImprintAlgOID();
         GeneralDigest digestAlgorithm = getDigestAlg(algID);
         
-        logger.info("The timestamp's algorithm was recognized as {}.", digestAlgorithm.getAlgorithmName());
+        LOG.info("The timestamp's algorithm was recognized as {}.", digestAlgorithm.getAlgorithmName());
         
         // create new hashed request
         byte[] digest = calculateMessageDigest(file, digestAlgorithm);
@@ -380,7 +396,7 @@ public class TSAConnector {
      *
      * @param algorithm {@link org.bouncycastle.crypto.Digest} hash algorithm name
      * @return the ASN.1 OID of the given hash algorithm
-     * @throws IllegalArgumentException when unsupported algorithm is chosen
+     * @throws java.lang.IllegalArgumentException when unsupported algorithm is chosen
      */
     private ASN1ObjectIdentifier getHashObjectIdentifier(final String algorithm) throws IllegalArgumentException {
         switch (algorithm) {
@@ -398,7 +414,7 @@ public class TSAConnector {
                 return TSPAlgorithms.SHA512;
             default:
                 IllegalArgumentException e = new IllegalArgumentException(algorithm + " not a supported algorithm");
-                logger.catching(e);
+                LOG.catching(e);
                 throw e;
         }
     }
@@ -408,7 +424,7 @@ public class TSAConnector {
      *
      * @param filename file to be opened
      * @return file byte data
-     * @throws IOException
+     * @throws java.io.IOException
      */
     private byte[] readFileByte(String filename) throws IOException {
         Path path = Paths.get(filename);
@@ -421,7 +437,7 @@ public class TSAConnector {
      * 
      * @param is
      * @return
-     * @throws IOException 
+     * @throws java.io.IOException 
      */
     public byte[] getBytesFromInputStream(InputStream is) throws IOException {
         try (ByteArrayOutputStream os = new ByteArrayOutputStream();)
@@ -556,10 +572,12 @@ public class TSAConnector {
      * @param tsq    TimeStamp Request to be sent to TSA
      * @param server complete URL of the TSA server
      * @return TimeStamp Response created from TSA's response
+     * @throws java.io.IOException
+     * @throws org.bouncycastle.tsp.TSPException
      */
     private TimeStampResponse getTSResponse(TimeStampRequest tsq, String server) throws IOException, TSPException {
-        logger.trace("entering getTSResponse() method");
-        logger.entry(tsq, server);
+        LOG.trace("entering getTSResponse() method");
+        LOG.entry(tsq, server);
         final byte[] request = tsq.getEncoded();
         // open valid connection
         HttpURLConnection con;
@@ -567,14 +585,14 @@ public class TSAConnector {
             URL url = new URL(server);
             con = (HttpURLConnection) url.openConnection();
         } catch (IOException e) {
-            logger.error("TSA server couldn't be contacted");
+            LOG.error("TSA server couldn't be contacted");
             throw e;
         }
         con.setDoOutput(true);
         con.setDoInput(true);
         con.setRequestProperty("Content-type", "application/timestamp-query");
         //con.setRequestProperty("Content-length", String.valueOf(request.length));
-        logger.info("TSA server was successfully contacted");
+        LOG.info("TSA server was successfully contacted");
 
         // send request
         OutputStream out;
@@ -583,10 +601,10 @@ public class TSAConnector {
             out.write(request);
             out.flush();
         } catch (IOException e) {
-            logger.error("Failed to send the TS request.");
+            LOG.error("Failed to send the TS request.");
             throw e;
         }
-        logger.debug("TS request sent");
+        LOG.debug("TS request sent");
 
         // receive response
         InputStream in;
@@ -597,7 +615,7 @@ public class TSAConnector {
             if (con.getResponseCode() != HttpURLConnection.HTTP_OK) {
                 throw new IOException("Received HTTP error: " + con.getResponseCode() + " - " + con.getResponseMessage());
             } else {
-                logger.debug("Response Code: {}", con.getResponseCode());
+                LOG.debug("Response Code: {}", con.getResponseCode());
             }
             // accept the answer
             in = con.getInputStream();
@@ -606,13 +624,13 @@ public class TSAConnector {
             // verify the answer
             response.validate(tsq);
         } catch (TSPException | IOException e) {
-            logger.error("Cannot interpret incoming data.");
+            LOG.error("Cannot interpret incoming data.");
             throw e;
         }
 
-        logger.debug("Status: {}", response.getStatusString()); // null means OK
+        LOG.debug("Status: {}", response.getStatusString()); // null means OK
 
-        return logger.exit(response);
+        return LOG.exit(response);
     }
 
     /**
@@ -621,49 +639,49 @@ public class TSAConnector {
      * @param reason intValue given by TSA server
      */
     private void logFailReason(final int reason) {
-        logger.error("TSA server returned error");
+        LOG.error("TSA server returned error");
         switch (reason) {
             case 0: {
-                logger.error("unrecognized or unsupported Algorithm Identifier");
+                LOG.error("unrecognized or unsupported Algorithm Identifier");
                 return;
             }
 
             case 2: {
-                logger.error("transaction not permitted or supported");
+                LOG.error("transaction not permitted or supported");
                 return;
             }
 
             case 5: {
-                logger.error("the data submitted has the wrong format");
+                LOG.error("the data submitted has the wrong format");
                 return;
             }
 
             case 14: {
-                logger.error("the TSA's time source is not available");
+                LOG.error("the TSA's time source is not available");
                 return;
             }
 
             case 15: {
-                logger.error("the requested TSA policy is not supported by the TSA");
+                LOG.error("the requested TSA policy is not supported by the TSA");
                 return;
             }
             case 16: {
-                logger.error("the requested extension is not supported by the TSA");
+                LOG.error("the requested extension is not supported by the TSA");
                 return;
             }
 
             case 17: {
-                logger.error("the additional information requested could not be understood or is not available");
+                LOG.error("the additional information requested could not be understood or is not available");
                 return;
             }
 
             case 25: {
-                logger.error("the request cannot be handled due to system failure");
+                LOG.error("the request cannot be handled due to system failure");
                 return;
             }
 
             default: {
-                logger.error("unknown error - error code ({}) not corresponding to RFC 3161 standard.", reason);
+                LOG.error("unknown error - error code ({}) not corresponding to RFC 3161 standard.", reason);
             }
         }
     }
@@ -674,10 +692,10 @@ public class TSAConnector {
      * @param tsr {@link TimeStampResponse}
      */
     private void logResponse(final TimeStampResponse tsr) {
-        logger.info("Timestamp: {}", tsr.getTimeStampToken().getTimeStampInfo().getGenTime());
-        logger.info("TSA: {}", tsr.getTimeStampToken().getTimeStampInfo().getTsa());
-        logger.info("Serial number: {}", tsr.getTimeStampToken().getTimeStampInfo().getSerialNumber());
-        logger.info("Policy: {}", tsr.getTimeStampToken().getTimeStampInfo().getPolicy());
+        LOG.info("Timestamp: {}", tsr.getTimeStampToken().getTimeStampInfo().getGenTime());
+        LOG.info("TSA: {}", tsr.getTimeStampToken().getTimeStampInfo().getTsa().getName());
+        LOG.info("Serial number: {}", tsr.getTimeStampToken().getTimeStampInfo().getSerialNumber());
+        LOG.info("Policy: {}", tsr.getTimeStampToken().getTimeStampInfo().getPolicy());
     }
 
     /**
@@ -685,7 +703,7 @@ public class TSAConnector {
      *
      * @param filename save file
      * @param data     binary data
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void saveToFile(final String filename, final byte[] data) throws IOException {
         try (FileOutputStream fos = new FileOutputStream(filename)) {
@@ -697,9 +715,9 @@ public class TSAConnector {
      * text displayed when wrong number of arguments provided
      */
     private void showHelp() {
-        logger.error("wrong number of arguments");
-        logger.error("obligatory arguments: filename_input filename_output");
-        logger.error("example: java -jar TSAConnector.jar file.in file.out");
+        LOG.error("wrong number of arguments");
+        LOG.error("obligatory arguments: filename_input filename_output");
+        LOG.error("example: java -jar TSAConnector.jar file.in file.out");
 
     }
 
